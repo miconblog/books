@@ -22,8 +22,27 @@ export function statement(invoice: Invoice, plays: Plays): string {
   let volumeCredits = 0;
   let result = `청구 내역 (고객명: ${invoice.customer})\n`;
 
-  const playFor = (perf: Perf) => plays[perf.playID];
-  const amountFor = (performance: Perf) => {
+  const format = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
+    .format;
+
+  for (let perf of invoice.performance) {
+    // 포인트를 적립한다.
+    volumeCredits += volumeCreditsFor(perf);
+
+    // 청구 내역을 출력한다.
+    result += ` ${playFor(perf).name}: ${format(amountFor(perf) / 100)} (${perf.audience}석)\n`;
+    totalAmount += amountFor(perf);
+  }
+
+  result += `총액: ${format(totalAmount / 100)}\n`;
+  result += `적립 포인트: ${volumeCredits}점\n`;
+  return result;
+
+  function playFor(perf: Perf) {
+    return plays[perf.playID];
+  }
+
+  function amountFor(performance: Perf) {
     let result = 0;
     switch (playFor(performance).type) {
       case 'tragedy':
@@ -46,26 +65,17 @@ export function statement(invoice: Invoice, plays: Plays): string {
         throw new Error(`알 수 없는 장르: ${playFor(performance).type}`);
     }
     return result;
-  };
-
-  const format = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
-    .format;
-
-  for (let perf of invoice.performance) {
-    // 포인트를 적립한다.
-    volumeCredits += Math.max(perf.audience - 30, 0);
-
-    // 희극 관객 5명마다 추가 포인트 제공
-    if ('comedy' === playFor(perf).type) volumeCredits += Math.floor(perf.audience / 5);
-
-    // 청구 내역을 출력한다.
-    result += ` ${playFor(perf).name}: ${format(amountFor(perf) / 100)} (${perf.audience}석)\n`;
-    totalAmount += amountFor(perf);
   }
 
-  result += `총액: ${format(totalAmount / 100)}\n`;
-  result += `적립 포인트: ${volumeCredits}점\n`;
-  return result;
+  function volumeCreditsFor(perf: Perf) {
+    let result = 0;
+    result += Math.max(perf.audience - 30, 0);
+
+    if ('comedy' === playFor(perf).type) {
+      result += Math.floor(perf.audience / 5);
+    }
+    return result;
+  }
 }
 
 /**
