@@ -52,8 +52,6 @@ export function statement(invoice: Invoice, plays: Plays): string {
     .format;
 
   for (let perf of invoice.performance) {
-    let thisAmount = amountFor(perf);
-
     // 포인트를 적립한다.
     volumeCredits += Math.max(perf.audience - 30, 0);
 
@@ -61,8 +59,8 @@ export function statement(invoice: Invoice, plays: Plays): string {
     if ('comedy' === playFor(perf).type) volumeCredits += Math.floor(perf.audience / 5);
 
     // 청구 내역을 출력한다.
-    result += ` ${playFor(perf).name}: ${format(thisAmount / 100)} (${perf.audience}석)\n`;
-    totalAmount += thisAmount;
+    result += ` ${playFor(perf).name}: ${format(amountFor(perf) / 100)} (${perf.audience}석)\n`;
+    totalAmount += amountFor(perf);
   }
 
   result += `총액: ${format(totalAmount / 100)}\n`;
