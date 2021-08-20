@@ -17,47 +17,48 @@ type Invoice = {
   performance: Perf[];
 };
 
+type EnrichPerformance = Perf & {
+  play: Play;
+  amount: number;
+  volumeCredits: number;
+};
+
+type StatementData = {
+  customer: string;
+  performance: EnrichPerformance[];
+  totalVolumCredits: number;
+  totalAmount: number;
+};
+
 export function statement(invoice: Invoice, plays: Plays): string {
-  let result = `청구 내역 (고객명: ${invoice.customer})\n`;
+  const data: StatementData = {
+    customer: invoice.customer,
+    performance: invoice.performance.map(enrichPerformance),
+    totalVolumCredits: 0,
+    totalAmount: 0,
+  };
+  data.totalAmount = totalAmount(data);
+  data.totalVolumCredits = totalVolumCredits(data);
+  return renderPlainText(data);
 
-  for (let perf of invoice.performance) {
-    result += ` ${playFor(perf).name}: ${usd(amountFor(perf))} (${perf.audience}석)\n`;
-  }
-
-  result += `총액: ${usd(totalAmount())}\n`;
-  result += `적립 포인트: ${totalVolumCredits()}점\n`;
-
-  return result;
-
-  function totalAmount() {
-    let result = 0;
-    for (let perf of invoice.performance) {
-      result += amountFor(perf);
-    }
-    return result;
-  }
-
-  function totalVolumCredits() {
-    let result = 0;
-    for (let perf of invoice.performance) {
-      result += volumeCreditsFor(perf);
-    }
-    return result;
-  }
-
-  function usd(number: number) {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(
-      number / 100
+  function enrichPerformance(performance: Perf): EnrichPerformance {
+    const result: EnrichPerformance = Object.assign(
+      { play: { name: '', type: '' }, amount: 0, volumeCredits: 0 },
+      performance
     );
+    result.play = playFor(result);
+    result.amount = amountFor(result);
+    result.volumeCredits = volumeCreditsFor(result);
+    return result;
   }
 
   function playFor(perf: Perf) {
     return plays[perf.playID];
   }
 
-  function amountFor(performance: Perf) {
+  function amountFor(performance: EnrichPerformance) {
     let result = 0;
-    switch (playFor(performance).type) {
+    switch (performance.play.type) {
       case 'tragedy':
         result = 40000;
 
@@ -75,22 +76,58 @@ export function statement(invoice: Invoice, plays: Plays): string {
         break;
 
       default:
-        throw new Error(`알 수 없는 장르: ${playFor(performance).type}`);
+        throw new Error(`알 수 없는 장르: ${performance.play.type}`);
     }
     return result;
   }
 
-  function volumeCreditsFor(perf: Perf) {
+  function volumeCreditsFor(performance: EnrichPerformance) {
     let result = 0;
-    result += Math.max(perf.audience - 30, 0);
+    result += Math.max(performance.audience - 30, 0);
 
-    if ('comedy' === playFor(perf).type) {
-      result += Math.floor(perf.audience / 5);
+    if ('comedy' === performance.play.type) {
+      result += Math.floor(performance.audience / 5);
+    }
+    return result;
+  }
+
+  function totalAmount(data: StatementData): number {
+    let result = 0;
+    for (let perf of data.performance) {
+      result += perf.amount;
+    }
+    return result;
+  }
+
+  function totalVolumCredits(data: StatementData): number {
+    let result = 0;
+    for (let perf of data.performance) {
+      // 포인트를 적립한다.
+      result += perf.volumeCredits;
     }
     return result;
   }
 }
 
+function renderPlainText(data: StatementData) {
+  let result = `청구 내역 (고객명: ${data.customer})\n`;
+
+  for (let perf of data.performance) {
+    // 청구 내역을 출력한다.
+    result += ` ${perf.play.name}: ${usd(perf.amount)} (${perf.audience}석)\n`;
+  }
+
+  result += `총액: ${usd(data.totalAmount)}\n`;
+  result += `적립 포인트: ${data.totalVolumCredits}점\n`;
+
+  return result;
+
+  function usd(number: number) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(
+      number / 100
+    );
+  }
+}
 /**
  * ts 적용 안했다면 오타로 고생했을듯...
  * Intl 객체 처음 써봤다. 공부를 좀 해야겠다.
