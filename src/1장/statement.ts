@@ -31,15 +31,19 @@ type StatementData = {
 };
 
 export function statement(invoice: Invoice, plays: Plays): string {
-  const data: StatementData = {
-    customer: invoice.customer,
-    performance: invoice.performance.map(enrichPerformance),
-    totalVolumCredits: 0,
-    totalAmount: 0,
-  };
-  data.totalAmount = totalAmount(data);
-  data.totalVolumCredits = totalVolumCredits(data);
-  return renderPlainText(data);
+  return renderPlainText(createStateData(invoice, plays));
+
+  function createStateData(invoice: Invoice, plays: Plays) {
+    const result: StatementData = {
+      customer: invoice.customer,
+      performance: invoice.performance.map(enrichPerformance),
+      totalVolumCredits: 0,
+      totalAmount: 0,
+    };
+    result.totalAmount = totalAmount(result);
+    result.totalVolumCredits = totalVolumCredits(result);
+    return result;
+  }
 
   function enrichPerformance(performance: Perf): EnrichPerformance {
     const result: EnrichPerformance = Object.assign(
@@ -92,20 +96,11 @@ export function statement(invoice: Invoice, plays: Plays): string {
   }
 
   function totalAmount(data: StatementData): number {
-    let result = 0;
-    for (let perf of data.performance) {
-      result += perf.amount;
-    }
-    return result;
+    return data.performance.reduce((sum, current) => (sum += current.amount), 0);
   }
 
   function totalVolumCredits(data: StatementData): number {
-    let result = 0;
-    for (let perf of data.performance) {
-      // 포인트를 적립한다.
-      result += perf.volumeCredits;
-    }
-    return result;
+    return data.performance.reduce((sum, current) => (sum += current.volumeCredits), 0);
   }
 }
 
